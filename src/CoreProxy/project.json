@@ -1,14 +1,11 @@
-﻿{
-  "version": "1.0.0-*",
-
+{
+  "supports": {},
   "dependencies": {
     "NETStandard.Library": "1.6.0",
+    "Microsoft.NETCore.Portable.Compatibility": "1.0.1",
     "System.Net.Security": "4.0.0"
   },
-
   "frameworks": {
-    "netstandard1.6": {
-      "imports": "dnxcore50"
-    }
+    "netstandard1.3": {}
   }
 }

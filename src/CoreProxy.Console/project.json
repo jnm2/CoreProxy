@@ -5,7 +5,6 @@
   },
 
   "dependencies": {
-    "CoreProxy": "1.0.0-*",
     "Microsoft.NETCore.App": {
       "type": "platform",
       "version": "1.0.0"
@@ -14,6 +13,11 @@
 
   "frameworks": {
     "netcoreapp1.0": {
+      "dependencies": {
+        "CoreProxy": {
+          "target": "project"
+        }
+      },
       "imports": "dnxcore50"
     }
   }
