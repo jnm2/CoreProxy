@@ -10,12 +10,14 @@ namespace jnm2.CoreProxy
     public class TcpProxyService : IDisposable
     {
         private readonly IPEndPoint to;
+        protected readonly Action<string> Log;
         private readonly TcpListener listener;
         private CancellationTokenSource disposalSource = new CancellationTokenSource();
 
-        public TcpProxyService(IPEndPoint from, IPEndPoint to)
+        public TcpProxyService(IPEndPoint from, IPEndPoint to, Action<string> log)
         {
             this.to = to;
+            Log = log;
             listener = new TcpListener(from);
         }
 
@@ -27,61 +29,79 @@ namespace jnm2.CoreProxy
 
         private void SubscribeToNextConnection()
         {
-            Task<TcpClient> acceptTask;
-            try
+            while (true)
             {
-                acceptTask = listener.AcceptTcpClientAsync();
+                try
+                {
+                    listener.AcceptTcpClientAsync().ContinueWith(ClientConnected, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                    return;
+                }
+                catch (InvalidOperationException) when (disposalSource.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Invoke(ex.ToString());
+                }
             }
-            catch (InvalidOperationException) when (disposalSource.IsCancellationRequested) // Handles race condition
-            {
-                return;
-            }
-
-            acceptTask.ContinueWith(ClientConnected, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
 
         private async void ClientConnected(Task<TcpClient> task)
         {
             SubscribeToNextConnection();
 
-            TcpClient clientConnection;
             try
             {
-                clientConnection = task.GetAwaiter().GetResult();
-            }
-            catch (ObjectDisposedException) when (disposalSource.IsCancellationRequested) // Handles race condition
-            {
-                return;
-            }
 
-            using (clientConnection)
-            using (var serverConnection = new TcpClient()) // TODO: pool
-            {
-                if (disposalSource.IsCancellationRequested) return;
-                await serverConnection.ConnectAsync(to.Address, to.Port); // TODO: possibly pool?
-                
-                using (var serverStream = serverConnection.GetStream())
-                using (var clientStream = clientConnection.GetStream())
+                TcpClient clientConnection;
+                try
                 {
-                    try
+                    clientConnection = task.GetAwaiter().GetResult();
+                }
+                catch (ObjectDisposedException) when (disposalSource.IsCancellationRequested) // Handles race condition
+                {
+                    return;
+                }
+
+                using (clientConnection)
+                using (var clientTcpStream = clientConnection.GetStream())
+                using (var clientStream = await TryGetClientStream(clientTcpStream))
+                {
+                    if (clientStream == null) return;
+
+                    using (var serverConnection = new TcpClient()) // TODO: pool
                     {
-                        await Task.WhenAll(
-                            new HalfDuplex(clientStream, serverStream, new byte[4096], new byte[4096]).Run(disposalSource.Token), // TODO: Pool buffers
-                            new HalfDuplex(serverStream, clientStream, new byte[4096], new byte[4096]).Run(disposalSource.Token));
-                    }
-                    catch (OperationCanceledException)
-                    {
+                        if (disposalSource.IsCancellationRequested) return;
+                        await serverConnection.ConnectAsync(to.Address, to.Port); // TODO: possibly pool?
+
+                        using (var serverStream = serverConnection.GetStream())
+                        {
+                            try
+                            {
+                                await Task.WhenAll(
+                                    new HalfDuplex(clientStream, serverStream, new byte[4096], new byte[4096]).Run(disposalSource.Token), // TODO: Pool buffers
+                                    new HalfDuplex(serverStream, clientStream, new byte[4096], new byte[4096]).Run(disposalSource.Token));
+                            }
+                            catch (OperationCanceledException)
+                            {
+                            }
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Log.Invoke(ex.ToString()); // TODO: logging
+            }  
         }
 
         private sealed class HalfDuplex
         {
             private byte[] readBuffer, writeBuffer;
-            private readonly NetworkStream fromStream, toStream;
+            private readonly Stream fromStream, toStream;
 
-            public HalfDuplex(NetworkStream fromStream, NetworkStream toStream, byte[] buffer1, byte[] buffer2)
+            public HalfDuplex(Stream fromStream, Stream toStream, byte[] buffer1, byte[] buffer2)
             {
                 readBuffer = buffer1;
                 writeBuffer = buffer2;
@@ -128,6 +148,10 @@ namespace jnm2.CoreProxy
                 }
             }
         }
+
+
+        protected virtual Task<Stream> TryGetClientStream(NetworkStream tcpStream) => Task.FromResult<Stream>(tcpStream);
+
 
         public void Dispose()
         {
