@@ -1,0 +1,64 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "type": "object",
+  "definitions": {
+    "ip-address": {
+      "type": "string",
+      "oneOf": [
+        { "format": "ipv4" },
+        { "format": "ipv6" }
+      ]
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "tcp-config": {
+      "type": "object",
+      "properties": {
+        "protocol": { "enum": [ "tcp" ] },
+        "ip": { "$ref": "#/definitions/ip-address" },
+        "port": { "$ref": "#/definitions/port" }
+      },
+      "required": [ "protocol", "ip", "port" ]
+    },
+    "tls-config": {
+      "type": "object",
+      "properties": {
+        "protocol": { "enum": [ "tls" ] },
+        "ip": { "$ref": "#/definitions/ip-address" },
+        "port": { "$ref": "#/definitions/port" },
+        "certificate": { "type": "string" } 
+      },
+      "required": [ "protocol", "ip", "port", "certificate" ]
+    }
+  }, 
+  "properties": {
+    "proxies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from": {
+            "oneOf": [
+              { "$ref": "#/definitions/tcp-config" },
+              { "$ref": "#/definitions/tls-config" }
+            ]
+          },
+          "to": {
+            "oneOf": [
+              { "$ref": "#/definitions/tcp-config" }
+            ]
+          }
+        },
+        "required": [ "name", "from", "to" ]
+      }
+    }
+  },
+  "required": [ "proxies" ]
+}

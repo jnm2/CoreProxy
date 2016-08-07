@@ -1,0 +1,32 @@
+{
+  "$schema": "CoreProxy.config.schema.json", 
+  "proxies": [
+    {
+      "name": "Test",
+      "from": {
+        "protocol": "tcp",
+        "ip": "0.0.0.0",
+        "port": 1234
+      },
+      "to": {
+        "protocol": "tcp",
+        "ip": "127.0.0.1",
+        "port": 32179
+      }
+    },
+    {
+      "name": "Test",
+      "from": {
+        "protocol": "tls",
+        "ip": "0.0.0.0",
+        "port": 1235,
+        "certificate": "Test"
+      },
+      "to": {
+        "protocol": "tcp",
+        "ip": "127.0.0.1",
+        "port": 32179
+      }
+    }
+  ]
+}

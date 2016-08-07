@@ -5,27 +5,30 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace jnm2.CoreProxy
+namespace jnm2.CoreProxy.Proxies
 {
-    public class TcpProxyService : IDisposable
+    public class TcpProxyService : IProxyService
     {
-        private readonly IPEndPoint to;
+        protected readonly IPEndPoint To;
         protected readonly Action<string> Log;
-        private readonly TcpListener listener;
-        private CancellationTokenSource disposalSource = new CancellationTokenSource();
+        protected readonly TcpListener Listener;
+        protected readonly CancellationTokenSource DisposalSource = new CancellationTokenSource();
 
         public TcpProxyService(IPEndPoint from, IPEndPoint to, Action<string> log)
         {
-            this.to = to;
+            To = to;
             Log = log;
-            listener = new TcpListener(from);
+            Listener = new TcpListener(from);
         }
 
         public void Start()
         {
-            listener.Start();
+            Listener.Start();
             SubscribeToNextConnection();
+            Log.Invoke(StartLogMessage());
         }
+
+        protected virtual string StartLogMessage() => $"Proxying all TCP traffic from {Listener.LocalEndpoint} to {To}.";
 
         private void SubscribeToNextConnection()
         {
@@ -33,10 +36,10 @@ namespace jnm2.CoreProxy
             {
                 try
                 {
-                    listener.AcceptTcpClientAsync().ContinueWith(ClientConnected, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                    Listener.AcceptTcpClientAsync().ContinueWith(ClientConnected, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                     return;
                 }
-                catch (InvalidOperationException) when (disposalSource.IsCancellationRequested)
+                catch (InvalidOperationException) when (DisposalSource.IsCancellationRequested)
                 {
                     return;
                 }
@@ -59,7 +62,7 @@ namespace jnm2.CoreProxy
                 {
                     clientConnection = task.GetAwaiter().GetResult();
                 }
-                catch (ObjectDisposedException) when (disposalSource.IsCancellationRequested) // Handles race condition
+                catch (ObjectDisposedException) when (DisposalSource.IsCancellationRequested) // Handles race condition
                 {
                     return;
                 }
@@ -72,16 +75,16 @@ namespace jnm2.CoreProxy
 
                     using (var serverConnection = new TcpClient()) // TODO: pool
                     {
-                        if (disposalSource.IsCancellationRequested) return;
-                        await serverConnection.ConnectAsync(to.Address, to.Port); // TODO: possibly pool?
+                        if (DisposalSource.IsCancellationRequested) return;
+                        await serverConnection.ConnectAsync(To.Address, To.Port); // TODO: possibly pool?
 
                         using (var serverStream = serverConnection.GetStream())
                         {
                             try
                             {
                                 await Task.WhenAll(
-                                    new HalfDuplex(clientStream, serverStream, new byte[4096], new byte[4096]).Run(disposalSource.Token), // TODO: Pool buffers
-                                    new HalfDuplex(serverStream, clientStream, new byte[4096], new byte[4096]).Run(disposalSource.Token));
+                                    new HalfDuplex(clientStream, serverStream, new byte[4096], new byte[4096]).Run(DisposalSource.Token), // TODO: Pool buffers
+                                    new HalfDuplex(serverStream, clientStream, new byte[4096], new byte[4096]).Run(DisposalSource.Token));
                             }
                             catch (OperationCanceledException)
                             {
@@ -153,10 +156,10 @@ namespace jnm2.CoreProxy
         protected virtual Task<Stream> TryGetClientStream(NetworkStream tcpStream) => Task.FromResult<Stream>(tcpStream);
 
 
-        public void Dispose()
+        public virtual void Dispose()
         {
-            disposalSource.Cancel();
-            listener.Stop();
+            DisposalSource.Cancel();
+            Listener.Stop();
         }
     }
 }

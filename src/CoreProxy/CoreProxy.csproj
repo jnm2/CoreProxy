@@ -39,9 +39,18 @@
     <!-- A reference to the entire .NET Framework is automatically included -->
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientSslTcpProxyService.cs" />
+    <Compile Include="Config\CoreProxyServiceConfiguration.cs" />
+    <Compile Include="Config\IConfigProvider.cs" />
+    <Compile Include="Config\InvalidConfigException.cs" />
+    <Compile Include="Config\JsonConfigProvider.cs" />
+    <Compile Include="CoreProxyService.cs" />
+    <Compile Include="Proxies\ClientTlsTcpProxyService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TcpProxyService.cs" />
+    <Compile Include="Proxies\IProxyService.cs" />
+    <Compile Include="Proxies\TcpProxyService.cs" />
+    <Compile Include="ProxyServiceResolutionException.cs" />
+    <Compile Include="ProxyServiceResolver.cs" />
+    <Compile Include="X509Extensions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,7 +1,11 @@
 {
   "version": "1.0.0-*",
   "buildOptions": {
-    "emitEntryPoint": true
+    "emitEntryPoint": true,
+    "copyToOutput": [
+      "CoreProxy.config.json",
+      "CoreProxy.config.schema.json"
+    ]   
   },
 
   "dependencies": {
