@@ -34,7 +34,7 @@ namespace jnm2.CoreProxy
                 }
             }
 
-            log.Invoke(proxyServices.Count == 1 ? "1 service started." : $"{proxyServices.Count} services started.");
+            log.Invoke(proxyServices.Count == 1 ? "1 proxy started." : $"{proxyServices.Count} proxies started.");
         }
 
         public void Dispose()
