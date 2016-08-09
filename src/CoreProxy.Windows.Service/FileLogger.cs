@@ -14,7 +14,7 @@ namespace CoreProxy.Windows.Service
 
         public void Log(string message)
         {
-            writer.WriteLine(message);
+            writer.WriteLine($"{DateTime.UtcNow:yyyy/MM/dd HH:mm:ss}\t{message}");
             writer.Flush();
         }
 

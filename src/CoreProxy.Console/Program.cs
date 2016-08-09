@@ -21,7 +21,7 @@ namespace jnm2.CoreProxy.Console
 
             var config = new JsonConfigProvider(configPath).Load();
             
-            using (var service = new CoreProxyService(config, Console.WriteLine))
+            using (var service = new CoreProxyService(config, message => Console.WriteLine($"{DateTime.UtcNow:yyyy/MM/dd HH:mm:ss}\t{message}")))
             {
                 service.StartAll();
 
