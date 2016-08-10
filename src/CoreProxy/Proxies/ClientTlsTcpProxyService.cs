@@ -71,7 +71,7 @@ namespace jnm2.CoreProxy.Proxies
 
         protected override async Task<Stream> TryGetClientStream(NetworkStream tcpStream)
         {
-            var r = new SslStream(tcpStream);
+            var r = new SslStream(tcpStream, false, UserCertificateValidationCallback);
             try
             {
                 await r.AuthenticateAsServerAsync(certificate);
@@ -82,6 +82,11 @@ namespace jnm2.CoreProxy.Proxies
                 return null;
             }
             return r;
+        }
+
+        private bool UserCertificateValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            return true; // We are the server with the private key, we inherently trust our config even if our cert is self-signed or not in the system trust list.
         }
 
         protected override string StartLogMessage() => $"Proxying all TLS traffic from {Listener.LocalEndpoint} to TCP at {To}.";
