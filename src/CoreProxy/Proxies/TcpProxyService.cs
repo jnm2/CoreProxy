@@ -114,7 +114,20 @@ namespace jnm2.CoreProxy.Proxies
 
             public async Task Run(CancellationToken cancellationToken)
             {
-                var bytesRead = await fromStream.ReadAsync(readBuffer, 0, readBuffer.Length, cancellationToken);
+                int bytesRead;
+
+                while (true)
+                {
+                    try
+                    {
+                        bytesRead = await fromStream.ReadAsync(readBuffer, 0, readBuffer.Length, cancellationToken);
+                        break;
+                    }
+                    catch (IOException ex) when (IsExpectedShutdownException(ex))
+                    {
+                        return;
+                    }
+                }
 
                 while (bytesRead != 0)
                 {
